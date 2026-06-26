@@ -1,0 +1,394 @@
+package com.example.ui.screens
+
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.viewmodel.AuthViewModel
+import com.example.viewmodel.FinanceViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+@Composable
+fun SettingsScreen(
+    navController: NavController,
+    financeViewModel: FinanceViewModel,
+    authViewModel: AuthViewModel
+) {
+    val context = LocalContext.current
+    val currentUser by authViewModel.currentUser.collectAsState()
+
+    val isDarkMode by financeViewModel.isDarkMode.collectAsState()
+    val isAutoSync by financeViewModel.isAutoSync.collectAsState()
+    val isDailyReminder by financeViewModel.isDailyReminder.collectAsState()
+    val firebaseSyncStatus by financeViewModel.firebaseSyncStatus.collectAsState()
+    val transactions by financeViewModel.transactions.collectAsState()
+
+    // Trigger toast alerts from UI message stream
+    LaunchedEffect(key1 = true) {
+        financeViewModel.uiMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 20.dp)
+            .padding(bottom = 100.dp)
+    ) {
+        Text(
+            text = "Pengaturan & Profil",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // User profile summary card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Row(
+                modifier = Modifier.padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile Pic",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = currentUser?.fullName ?: "Pengguna Offline",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = currentUser?.email ?: "",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                    
+                    val dateFormatted = remember(currentUser) {
+                        currentUser?.createdAt?.let {
+                            SimpleDateFormat("dd MMMM yyyy", Locale("in", "ID")).format(Date(it))
+                        } ?: ""
+                    }
+                    if (dateFormatted.isNotBlank()) {
+                        Text(
+                            text = "Joined: $dateFormatted",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section header
+        SettingSectionHeader(title = "Tampilan")
+
+        // Dark Mode Toggle row
+        SettingToggleRow(
+            icon = Icons.Default.Brightness4,
+            title = "Mode Gelap (Dark Mode)",
+            subtitle = "Maksimalkan visibilitas malam hari",
+            checked = isDarkMode,
+            onCheckedChange = { financeViewModel.setDarkMode(it) }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Section header
+        SettingSectionHeader(title = "Keamanan & Sinkronisasi")
+
+        SettingToggleRow(
+            icon = Icons.Default.Sync,
+            title = "Sinkronisasi Otomatis",
+            subtitle = "Sinkronkan dengan Firestore Cloud",
+            checked = isAutoSync,
+            onCheckedChange = { financeViewModel.setAutoSync(it) }
+        )
+
+        // Cloud Backup simulation box
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Backup Cloud Firebase",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = firebaseSyncStatus,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    Button(
+                        onClick = { financeViewModel.simulateFirebaseSync() },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                    ) {
+                        Text("Backup", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        SettingToggleRow(
+            icon = Icons.Default.NotificationsActive,
+            title = "Notifikasi Pengingat",
+            subtitle = "Pengingat pencatatan harian harian",
+            checked = isDailyReminder,
+            onCheckedChange = { financeViewModel.setDailyReminder(it) }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Section header: Exports
+        SettingSectionHeader(title = "Ekspor Laporan")
+
+        SettingClickableRow(
+            icon = Icons.Default.Analytics,
+            title = "Ekspor Format Excel (.xlsx)",
+            subtitle = "Unduh seluruh rekap riwayat format spreadsheet Excel",
+            onClick = {
+                val file = com.example.utils.ExportUtils.exportToXlsx(context, transactions)
+                if (file != null && file.exists()) {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "Laporan Keuangan MoneyFlow (.xlsx)")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Ekspor Laporan Excel (.xlsx) Via"))
+                } else {
+                    Toast.makeText(context, "Gagal membuat laporan Excel (.xlsx)", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+
+        SettingClickableRow(
+            icon = Icons.Default.PictureAsPdf,
+            title = "Ekspor Format PDF",
+            subtitle = "Cetak laporan keuangan resmi format PDF",
+            onClick = {
+                val file = com.example.utils.ExportUtils.exportToPdf(context, transactions)
+                if (file != null && file.exists()) {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "Laporan Keuangan MoneyFlow (.pdf)")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Ekspor Laporan PDF (.pdf) Via"))
+                } else {
+                    Toast.makeText(context, "Gagal membuat laporan PDF (.pdf)", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Logout action
+        Button(
+            onClick = {
+                authViewModel.logout()
+                Toast.makeText(context, "Berhasil keluar!", Toast.LENGTH_SHORT).show()
+                navController.navigate("login") {
+                    popUpTo("main") { inclusive = true }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag("logout_button"),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Logout, contentDescription = "Logout")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Logout dari Akun", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun SettingSectionHeader(title: String) {
+    Text(
+        text = title,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
+@Composable
+fun SettingToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary)
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+fun SettingClickableRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary)
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = "Arrow right",
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
