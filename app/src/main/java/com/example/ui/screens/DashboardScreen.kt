@@ -3,6 +3,10 @@ package com.example.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,9 +54,74 @@ fun DashboardScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val transactions by financeViewModel.transactions.collectAsState()
 
+    val myDebt by financeViewModel.myDebt.collectAsState()
+    val receivables by financeViewModel.receivables.collectAsState()
+    val goldValue by financeViewModel.goldValue.collectAsState()
+
+    val totalHutang = remember(transactions) {
+        transactions.filter { 
+            it.type == "EXPENSE" && (it.category == "Cicilan/Hutang" || it.category == "Cicilan/Hutang(Produktif)" || it.category == "Cicilan/Hutang(Konsumtif)") 
+        }.sumOf { it.amount }
+    }
+    val totalPiutang = remember(transactions) {
+        transactions.filter { (it.type == "INCOME" && it.category == "Piutang") || it.walletAccount == "Piutang" }.sumOf { it.amount }
+    }
+
+    val initialCash by financeViewModel.initialCash.collectAsState()
+    val initialEWallet by financeViewModel.initialEWallet.collectAsState()
+    val initialBca by financeViewModel.initialBca.collectAsState()
+    val initialBri by financeViewModel.initialBri.collectAsState()
+    val initialDanamon by financeViewModel.initialDanamon.collectAsState()
+    val initialOther by financeViewModel.initialOther.collectAsState()
+
+    // Dynamically calculate final balances for each wallet based on transactions!
+    val walletBalances = remember(transactions, initialCash, initialEWallet, initialBca, initialBri, initialDanamon, initialOther) {
+        var cash = initialCash
+        var ewallet = initialEWallet
+        var bca = initialBca
+        var bri = initialBri
+        var danamon = initialDanamon
+        var other = initialOther
+
+        transactions.forEach { t ->
+            val amt = t.amount
+            if (t.walletAccount != "Piutang") {
+                if (t.type == "INCOME") {
+                    // Ignore Piutang because it is unpaid
+                    if (t.category != "Piutang") {
+                        when (t.walletAccount) {
+                            "Tunai" -> cash += amt
+                            "E-Wallet" -> ewallet += amt
+                            "BCA" -> bca += amt
+                            "BRI" -> bri += amt
+                            "Danamon" -> danamon += amt
+                            else -> other += amt
+                        }
+                    }
+                } else {
+                    when (t.walletAccount) {
+                        "Tunai" -> cash -= amt
+                        "E-Wallet" -> ewallet -= amt
+                        "BCA" -> bca -= amt
+                        "BRI" -> bri -= amt
+                        "Danamon" -> danamon -= amt
+                        else -> other -= amt
+                    }
+                }
+            }
+        }
+        mapOf(
+            "Tunai" to cash,
+            "E-Wallet" to ewallet,
+            "BCA" to bca,
+            "BRI" to bri,
+            "Danamon" to danamon,
+            "Lainnya" to other
+        )
+    }
+
     // Calculating Stats based on real-time Room values including 50/30/20 actual spend categories
-    val (totalBalance, totalIncome, totalExpense, needsActual, wantsActual) = remember(transactions) {
-        var balance = 0.0
+    val (totalBalance, totalIncome, totalExpense, needsActual, wantsActual) = remember(transactions, walletBalances) {
         var income = 0.0
         var expense = 0.0
         var needs = 0.0
@@ -69,25 +138,32 @@ fun DashboardScreen(
 
         transactions.forEach { trans ->
             if (trans.type == "INCOME") {
-                balance += trans.amount
-                if (trans.date >= monthStart) {
-                    income += trans.amount
+                // Ignore Piutang because it is unpaid
+                if (trans.category != "Piutang") {
+                    if (trans.date >= monthStart) {
+                        income += trans.amount
+                    }
                 }
             } else {
-                balance -= trans.amount
                 if (trans.date >= monthStart) {
                     expense += trans.amount
-                    // Map categories: Needs -> Makanan, Transportasi, E-Wallet
-                    if (trans.category in listOf("Makanan", "Transportasi", "E-Wallet")) {
+                    // Map categories: Needs -> Makanan, Minuman, Kesehatan, Kebutuhan Sekolah, Perawatan Diri, Transportasi, Pajak, Cicilan/Hutang(Produktif), Zakat & Sedekah, Pulsa/Data, Keluarga, Tagihan Rutin, Tempat Tinggal.
+                    val needsCategories = listOf(
+                        "Makanan", "Minuman", "Kesehatan", "Kebutuhan Sekolah", "Perawatan Diri", 
+                        "Transportasi", "Pajak", "Cicilan/Hutang", "Cicilan/Hutang(Produktif)", 
+                        "Zakat & Sedekah", "Pulsa/Data", "Keluarga", "Tagihan Rutin", "Tempat Tinggal"
+                    )
+                    if (trans.category in needsCategories) {
                         needs += trans.amount
                     } else {
-                        // Wants -> Hiburan, Minuman, Lainnya
+                        // Wants -> Belanja(Shopping), Hiburan, Jajan, E-Wallet, Cicilan/Hutang(Konsumtif), Lainnya, Langganan
                         wants += trans.amount
                     }
                 }
             }
         }
-        listOf(balance, income, expense, needs, wants)
+        val totalCashBalance = walletBalances.values.sum()
+        listOf(totalCashBalance, income, expense, needs, wants)
     }
 
     LazyColumn(
@@ -166,17 +242,17 @@ fun DashboardScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Sisa Saldo Anda",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.8f)
+                                text = "Saldo Dompet & Rekening",
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.85f)
                             )
                             
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             
                             Text(
                                 text = FormatUtils.formatRupiah(totalBalance),
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                         }
@@ -184,12 +260,39 @@ fun DashboardScreen(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_wallet_custom),
                             contentDescription = "Dompet",
-                            tint = Color.White.copy(alpha = 0.35f),
-                            modifier = Modifier.size(64.dp)
+                            tint = Color.White.copy(alpha = 0.3f),
+                            modifier = Modifier.size(52.dp)
                         )
                     }
                     
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Row of portfolio: Debt, Receivables
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.12f))
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text("Hutang Saya", fontSize = 10.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text(FormatUtils.formatRupiah(totalHutang), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.12f))
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text("Piutang", fontSize = 10.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text(FormatUtils.formatRupiah(totalPiutang), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -380,7 +483,7 @@ fun DashboardScreen(
                                             )
                                         }
                                         Text(
-                                            text = "Makanan, Transport, E-Wallet",
+                                            text = "Makanan, Minuman, Kesehatan, Sekolah, Transport, Pajak, dll",
                                             fontSize = 10.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -435,7 +538,7 @@ fun DashboardScreen(
                                             )
                                         }
                                         Text(
-                                            text = "Hiburan, Jajan, Minuman, Lainnya",
+                                            text = "Belanja, Hiburan, Jajan, E-Wallet, Lainnya",
                                             fontSize = 10.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -638,11 +741,26 @@ fun TransactionRowItem(transaction: Transaction, onClick: () -> Unit) {
 
 fun getCategoryIcon(category: String): ImageVector {
     return when (category) {
+        "Tempat Tinggal" -> Icons.Default.Home
+        "Tagihan Rutin" -> Icons.Default.Receipt
+        "Pulsa/Data" -> Icons.Default.PhoneAndroid
+        "Langganan" -> Icons.Default.Star
+        "Belanja(Shopping)" -> Icons.Default.ShoppingCart
+        "Kesehatan" -> Icons.Default.LocalHospital
+        "Pajak" -> Icons.Default.AccountBalance
+        "Cicilan/Hutang", "Cicilan/Hutang(Produktif)", "Cicilan/Hutang(Konsumtif)" -> Icons.Default.CreditCard
+        "Zakat & Sedekah" -> Icons.Default.Favorite
+        "Perawatan Diri" -> Icons.Default.Face
+        "Keluarga" -> Icons.Default.People
+        "Kebutuhan Sekolah" -> Icons.Default.School
+        "Bonus/Insentif" -> Icons.Default.CardGiftcard
+        "Pekerjaan Sampingan(Freelancer)" -> Icons.Default.Work
+        "Penjualan" -> Icons.Default.Storefront
         "Makanan" -> Icons.Default.Restaurant
         "Transportasi" -> Icons.Default.DirectionsCar
         "Hiburan" -> Icons.Default.VideogameAsset
         "E-Wallet" -> Icons.Default.AccountBalanceWallet
-        "Gaji" -> Icons.Default.MonetizationOn
+        "Gaji", "Gaji Utama" -> Icons.Default.MonetizationOn
         "Minuman" -> Icons.Default.LocalCafe
         "Jajan" -> Icons.Default.Fastfood
         else -> Icons.Default.Category

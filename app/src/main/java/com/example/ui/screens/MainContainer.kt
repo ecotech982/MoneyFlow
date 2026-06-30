@@ -44,39 +44,52 @@ fun MainContainer(
                     label = { Text("Beranda") }
                 )
 
-                // Tab 1: History
+                // Tab 1: Wallet
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 1) Icons.Default.History else Icons.Outlined.History,
+                            imageVector = if (selectedTab == 1) Icons.Default.Wallet else Icons.Outlined.Wallet,
+                            contentDescription = "Wallet"
+                        )
+                    },
+                    label = { Text("Wallet") }
+                )
+
+                // Tab 2: History
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == 2) Icons.Default.History else Icons.Outlined.History,
                             contentDescription = "Riwayat"
                         )
                     },
                     label = { Text("Riwayat") }
                 )
 
-                // Tab 2: Analytics
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    icon = {
-                        Icon(
-                            imageVector = if (selectedTab == 2) Icons.Default.PieChart else Icons.Outlined.PieChart,
-                            contentDescription = "Analitik"
-                        )
-                    },
-                    label = { Text("Analitik") }
-                )
-
-                // Tab 3: Settings
+                // Tab 3: Insight
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 3) Icons.Default.Settings else Icons.Outlined.Settings,
+                            imageVector = if (selectedTab == 3) Icons.Default.TrendingUp else Icons.Outlined.TrendingUp,
+                            contentDescription = "Insight"
+                        )
+                    },
+                    label = { Text("Insight") }
+                )
+
+                // Tab 4: Settings
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == 4) Icons.Default.Settings else Icons.Outlined.Settings,
                             contentDescription = "Pengaturan"
                         )
                     },
@@ -86,7 +99,7 @@ fun MainContainer(
         },
         floatingActionButton = {
             // Floating Action Button to add transactions seamlessly
-            if (selectedTab == 0 || selectedTab == 1) {
+            if (selectedTab == 0 || selectedTab == 1 || selectedTab == 2) {
                 FloatingActionButton(
                     onClick = { navController.navigate("add_transaction") },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -120,9 +133,10 @@ fun MainContainer(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> DashboardScreen(navController, financeViewModel, authViewModel)
-                    1 -> HistoryScreen(navController, financeViewModel)
-                    2 -> AnalyticsScreen(financeViewModel)
-                    3 -> SettingsScreen(navController, financeViewModel, authViewModel)
+                    1 -> WalletScreen(navController, financeViewModel)
+                    2 -> HistoryScreen(navController, financeViewModel)
+                    3 -> AnalyticsScreen(financeViewModel)
+                    4 -> SettingsScreen(navController, financeViewModel, authViewModel)
                 }
             }
         }

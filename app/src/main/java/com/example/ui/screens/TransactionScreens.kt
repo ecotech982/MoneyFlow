@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,10 +46,17 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
     var amountStr by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("EXPENSE") } // INCOME or EXPENSE
-    var selectedCategory by remember { mutableStateOf("Makanan") }
+    var selectedCategory by remember { mutableStateOf("Tempat Tinggal") }
     var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var selectedWallet by remember { mutableStateOf("Tunai") }
+    var customBankName by remember { mutableStateOf("") }
 
-    val categories = listOf("Makanan", "Transportasi", "Hiburan", "E-Wallet", "Gaji", "Minuman", "Jajan", "Lainnya")
+    val categories = listOf(
+        "Tempat Tinggal", "Tagihan Rutin", "Pulsa/Data", "Langganan", 
+        "Belanja(Shopping)", "Kesehatan", "Pajak", "Cicilan/Hutang(Produktif)", "Cicilan/Hutang(Konsumtif)", 
+        "Zakat & Sedekah", "Perawatan Diri", "Keluarga", "Kebutuhan Sekolah",
+        "Makanan", "Transportasi", "Hiburan", "E-Wallet", "Minuman", "Jajan", "Lainnya"
+    )
 
     val dateString = remember(selectedDate) {
         SimpleDateFormat("dd MMMM yyyy", Locale("in", "ID")).format(Date(selectedDate))
@@ -118,7 +126,9 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
                 Button(
                     onClick = { 
                         selectedType = "EXPENSE" 
-                        if (selectedCategory == "Gaji") selectedCategory = "Makanan"
+                        if (selectedCategory in listOf("Gaji Utama", "Bonus/Insentif", "Pekerjaan Sampingan(Freelancer)", "Penjualan", "Gaji")) {
+                            selectedCategory = "Tempat Tinggal"
+                        }
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -133,7 +143,7 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
                 Button(
                     onClick = { 
                         selectedType = "INCOME" 
-                        selectedCategory = "Gaji"
+                        selectedCategory = "Gaji Utama"
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -293,15 +303,15 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp),
+                    .heightIn(max = 340.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Filter categories: restrict 'Gaji' only under INCOME, others mostly under EXPENSE
                 val filteredCats = if (selectedType == "INCOME") {
-                    listOf("Gaji", "E-Wallet", "Lainnya")
+                    listOf("Gaji Utama", "Bonus/Insentif", "Pekerjaan Sampingan(Freelancer)", "Penjualan", "Lainnya")
                 } else {
-                    categories.filter { it != "Gaji" }
+                    categories.filter { it != "Gaji Utama" && it != "Bonus/Insentif" && it != "Pekerjaan Sampingan(Freelancer)" && it != "Penjualan" && it != "Piutang" }
                 }
 
                 items(filteredCats) { cat ->
@@ -355,6 +365,57 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
                 singleLine = true
             )
 
+            // Form: Wallet selector
+            Text(
+                text = "Dari/Ke Dompet",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val wallets = listOf("Tunai", "E-Wallet", "Piutang", "Rekening 1", "Rekening 2", "Rekening 3", "Lainnya")
+                        wallets.forEach { wallet ->
+                            val isSelected = selectedWallet == wallet
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedWallet = wallet },
+                                label = { Text(wallet, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
+
+                    if (selectedWallet == "Lainnya") {
+                        OutlinedTextField(
+                            value = customBankName,
+                            onValueChange = { customBankName = it },
+                            label = { Text("Nama Bank Lainnya (Ketik Manual)") },
+                            placeholder = { Text("e.g. Bank Mandiri, CIMB Niaga") },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
             // Form: Date Picker Row clickable
             Card(
                 modifier = Modifier
@@ -401,12 +462,18 @@ fun AddTransactionScreen(navController: NavController, financeViewModel: Finance
                     if (nominal <= 0.0) {
                         Toast.makeText(context, "Nominal nominal harus lebih besar dari Rp 0", Toast.LENGTH_SHORT).show()
                     } else {
+                        val finalWallet = if (selectedWallet == "Lainnya") {
+                            if (customBankName.isNotBlank()) customBankName else "Lainnya"
+                        } else {
+                            selectedWallet
+                        }
                         financeViewModel.addTransaction(
                             amount = nominal,
                             type = selectedType,
                             category = selectedCategory,
                             note = note,
-                            date = selectedDate
+                            date = selectedDate,
+                            walletAccount = finalWallet
                         )
                         navController.popBackStack()
                     }
@@ -521,6 +588,7 @@ fun TransactionDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     DetailRow(label = "Kategori", value = transaction.category)
+                    DetailRow(label = "Dari/Ke Dompet", value = transaction.walletAccount.ifBlank { "Tunai" })
                     DetailRow(label = "Catatan", value = transaction.note.ifBlank { "-" })
                     
                     val transDate = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale("in", "ID")).format(Date(transaction.date))
@@ -577,13 +645,29 @@ fun EditTransactionScreen(
         return
     }
 
+    val initialWallet = transaction.walletAccount
+    val displayWallet = when(initialWallet) {
+        "BCA" -> "Rekening 1"
+        "BRI" -> "Rekening 2"
+        "Danamon" -> "Rekening 3"
+        else -> initialWallet
+    }
+    val isKnownWallet = displayWallet in listOf("Tunai", "E-Wallet", "Piutang", "Rekening 1", "Rekening 2", "Rekening 3")
+
     var amountStr by remember { mutableStateOf(transaction.amount.toInt().toString()) }
     var note by remember { mutableStateOf(transaction.note) }
     var selectedType by remember { mutableStateOf(transaction.type) }
     var selectedCategory by remember { mutableStateOf(transaction.category) }
     var selectedDate by remember { mutableStateOf(transaction.date) }
+    var selectedWallet by remember { mutableStateOf(if (isKnownWallet) displayWallet else if (displayWallet.isNotBlank()) "Lainnya" else "Tunai") }
+    var customBankName by remember { mutableStateOf(if (!isKnownWallet) displayWallet else "") }
 
-    val categories = listOf("Makanan", "Transportasi", "Hiburan", "E-Wallet", "Gaji", "Minuman", "Jajan", "Lainnya")
+    val categories = listOf(
+        "Tempat Tinggal", "Tagihan Rutin", "Pulsa/Data", "Langganan", 
+        "Belanja(Shopping)", "Kesehatan", "Pajak", "Cicilan/Hutang(Produktif)", "Cicilan/Hutang(Konsumtif)", 
+        "Zakat & Sedekah", "Perawatan Diri", "Keluarga", "Kebutuhan Sekolah",
+        "Makanan", "Transportasi", "Hiburan", "E-Wallet", "Minuman", "Jajan", "Lainnya"
+    )
 
     val dateString = remember(selectedDate) {
         SimpleDateFormat("dd MMMM yyyy", Locale("in", "ID")).format(Date(selectedDate))
@@ -650,7 +734,9 @@ fun EditTransactionScreen(
                 Button(
                     onClick = { 
                         selectedType = "EXPENSE" 
-                        if (selectedCategory == "Gaji") selectedCategory = "Makanan"
+                        if (selectedCategory in listOf("Gaji Utama", "Bonus/Insentif", "Pekerjaan Sampingan(Freelancer)", "Penjualan", "Gaji")) {
+                            selectedCategory = "Tempat Tinggal"
+                        }
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -665,7 +751,7 @@ fun EditTransactionScreen(
                 Button(
                     onClick = { 
                         selectedType = "INCOME" 
-                        selectedCategory = "Gaji"
+                        selectedCategory = "Gaji Utama"
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -824,14 +910,14 @@ fun EditTransactionScreen(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp),
+                    .heightIn(max = 340.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val filteredCats = if (selectedType == "INCOME") {
-                    listOf("Gaji", "E-Wallet", "Lainnya")
+                    listOf("Gaji Utama", "Bonus/Insentif", "Pekerjaan Sampingan(Freelancer)", "Penjualan", "Piutang", "Lainnya")
                 } else {
-                    categories.filter { it != "Gaji" }
+                    categories.filter { it != "Gaji Utama" && it != "Bonus/Insentif" && it != "Pekerjaan Sampingan(Freelancer)" && it != "Penjualan" && it != "Piutang" }
                 }
 
                 items(filteredCats) { cat ->
@@ -884,6 +970,57 @@ fun EditTransactionScreen(
                 singleLine = true
             )
 
+            // Form: Wallet selector
+            Text(
+                text = "Dari/Ke Dompet",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val wallets = listOf("Tunai", "E-Wallet", "Piutang", "Rekening 1", "Rekening 2", "Rekening 3", "Lainnya")
+                        wallets.forEach { wallet ->
+                            val isSelected = selectedWallet == wallet
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedWallet = wallet },
+                                label = { Text(wallet, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
+
+                    if (selectedWallet == "Lainnya") {
+                        OutlinedTextField(
+                            value = customBankName,
+                            onValueChange = { customBankName = it },
+                            label = { Text("Nama Bank Lainnya (Ketik Manual)") },
+                            placeholder = { Text("e.g. Bank Mandiri, CIMB Niaga") },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -928,12 +1065,18 @@ fun EditTransactionScreen(
                     if (nominal <= 0.0) {
                         Toast.makeText(context, "Nominal nominal harus lebih besar dari Rp 0", Toast.LENGTH_SHORT).show()
                     } else {
+                        val finalWallet = if (selectedWallet == "Lainnya") {
+                            if (customBankName.isNotBlank()) customBankName else "Lainnya"
+                        } else {
+                            selectedWallet
+                        }
                         val updated = transaction.copy(
                             amount = nominal,
                             type = selectedType,
                             category = selectedCategory,
                             note = note,
-                            date = selectedDate
+                            date = selectedDate,
+                            walletAccount = finalWallet
                         )
                         financeViewModel.updateTransaction(updated)
                         // pop back detailed screen too so it displays updated values in the list

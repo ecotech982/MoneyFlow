@@ -41,6 +41,45 @@ class FinanceViewModel(
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
     val transactions: StateFlow<List<Transaction>> = _transactions.asStateFlow()
 
+    // Target Anggaran (Budget Target) & Periode (Month Calendar)
+    private val _targetBudget = MutableStateFlow(prefs.getFloat("target_budget", 5000000f).toDouble())
+    val targetBudget: StateFlow<Double> = _targetBudget.asStateFlow()
+
+    private val _selectedMonth = MutableStateFlow(prefs.getInt("selected_month", Calendar.getInstance().get(Calendar.MONTH)))
+    val selectedMonth: StateFlow<Int> = _selectedMonth.asStateFlow()
+
+    private val _selectedYear = MutableStateFlow(prefs.getInt("selected_year", Calendar.getInstance().get(Calendar.YEAR)))
+    val selectedYear: StateFlow<Int> = _selectedYear.asStateFlow()
+
+    // Additional Portfolio: Hutang Saya, Piutang Orang, Emas, and Initial Balances for accounts
+    private val _myDebt = MutableStateFlow(prefs.getFloat("my_debt", 0f).toDouble())
+    val myDebt: StateFlow<Double> = _myDebt.asStateFlow()
+
+    private val _receivables = MutableStateFlow(prefs.getFloat("receivables", 0f).toDouble())
+    val receivables: StateFlow<Double> = _receivables.asStateFlow()
+
+    private val _goldValue = MutableStateFlow(prefs.getFloat("gold_value", 0f).toDouble())
+    val goldValue: StateFlow<Double> = _goldValue.asStateFlow()
+
+    // Initial balances for account types to make it realistic
+    private val _initialCash = MutableStateFlow(prefs.getFloat("initial_cash", 0f).toDouble())
+    val initialCash: StateFlow<Double> = _initialCash.asStateFlow()
+
+    private val _initialEWallet = MutableStateFlow(prefs.getFloat("initial_ewallet", 0f).toDouble())
+    val initialEWallet: StateFlow<Double> = _initialEWallet.asStateFlow()
+
+    private val _initialBca = MutableStateFlow(prefs.getFloat("initial_bca", 0f).toDouble())
+    val initialBca: StateFlow<Double> = _initialBca.asStateFlow()
+
+    private val _initialBri = MutableStateFlow(prefs.getFloat("initial_bri", 0f).toDouble())
+    val initialBri: StateFlow<Double> = _initialBri.asStateFlow()
+
+    private val _initialDanamon = MutableStateFlow(prefs.getFloat("initial_danamon", 0f).toDouble())
+    val initialDanamon: StateFlow<Double> = _initialDanamon.asStateFlow()
+
+    private val _initialOther = MutableStateFlow(prefs.getFloat("initial_other", 0f).toDouble())
+    val initialOther: StateFlow<Double> = _initialOther.asStateFlow()
+
     // Filter and search on history screen
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -95,7 +134,7 @@ class FinanceViewModel(
         }
     }
 
-    fun addTransaction(amount: Double, type: String, category: String, note: String, date: Long) {
+    fun addTransaction(amount: Double, type: String, category: String, note: String, date: Long, walletAccount: String = "Tunai") {
         viewModelScope.launch {
             val user = authRepository.loadSavedUser()
             val userId = user?.id ?: authRepository.getLoggedUserId()
@@ -107,7 +146,8 @@ class FinanceViewModel(
                 category = category,
                 note = note,
                 date = date,
-                userId = finalUserId
+                userId = finalUserId,
+                walletAccount = walletAccount
             )
             transactionRepository.insertTransaction(transaction)
             _uiMessage.emit("Transaksi berhasil disimpan!")
@@ -117,6 +157,45 @@ class FinanceViewModel(
                 simulateFirebaseSync()
             }
         }
+    }
+
+    fun setTargetBudget(amount: Double) {
+        _targetBudget.value = amount
+        prefs.edit().putFloat("target_budget", amount.toFloat()).apply()
+    }
+
+    fun setSelectedMonth(month: Int, year: Int) {
+        _selectedMonth.value = month
+        _selectedYear.value = year
+        prefs.edit().putInt("selected_month", month).putInt("selected_year", year).apply()
+    }
+
+    fun updatePortfolio(debt: Double, receivables: Double, gold: Double) {
+        _myDebt.value = debt
+        _receivables.value = receivables
+        _goldValue.value = gold
+        prefs.edit()
+            .putFloat("my_debt", debt.toFloat())
+            .putFloat("receivables", receivables.toFloat())
+            .putFloat("gold_value", gold.toFloat())
+            .apply()
+    }
+
+    fun updateInitialBalances(cash: Double, eWallet: Double, bca: Double, bri: Double, danamon: Double, other: Double) {
+        _initialCash.value = cash
+        _initialEWallet.value = eWallet
+        _initialBca.value = bca
+        _initialBri.value = bri
+        _initialDanamon.value = danamon
+        _initialOther.value = other
+        prefs.edit()
+            .putFloat("initial_cash", cash.toFloat())
+            .putFloat("initial_ewallet", eWallet.toFloat())
+            .putFloat("initial_bca", bca.toFloat())
+            .putFloat("initial_bri", bri.toFloat())
+            .putFloat("initial_danamon", danamon.toFloat())
+            .putFloat("initial_other", other.toFloat())
+            .apply()
     }
 
     fun updateTransaction(transaction: Transaction) {

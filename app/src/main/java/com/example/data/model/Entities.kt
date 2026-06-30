@@ -20,5 +20,6 @@ data class Transaction(
     val category: String, // Makanan, Transportasi, Hiburan, E-Wallet, Gaji, Minuman, Lainnya
     val note: String,
     val date: Long, // Epoch millisecond
-    val userId: Int = 1
+    val userId: Int = 1,
+    val walletAccount: String = "Tunai"
 )

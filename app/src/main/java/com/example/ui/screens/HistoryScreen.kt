@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.data.model.Transaction
 import com.example.viewmodel.FinanceViewModel
+import androidx.compose.ui.graphics.Color
 import java.util.Calendar
 
 @Composable
@@ -68,6 +69,16 @@ fun HistoryScreen(navController: NavController, financeViewModel: FinanceViewMod
         }
     }
 
+    var selectedHistoryTab by remember { mutableStateOf(0) } // 0 = Semua, 1 = Pemasukan, 2 = Pengeluaran
+
+    val finalTransactions = remember(filteredTransactions, selectedHistoryTab) {
+        when (selectedHistoryTab) {
+            1 -> filteredTransactions.filter { it.type == "INCOME" }
+            2 -> filteredTransactions.filter { it.type == "EXPENSE" }
+            else -> filteredTransactions
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -100,6 +111,44 @@ fun HistoryScreen(navController: NavController, financeViewModel: FinanceViewMod
             singleLine = true
         )
 
+        // Split Tabs Row
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val tabs = listOf("Semua", "Pemasukan", "Pengeluaran")
+                tabs.forEachIndexed { index, label ->
+                    val isTabSelected = selectedHistoryTab == index
+                    val tabBg = if (isTabSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                    val tabTextCol = if (isTabSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    
+                    Button(
+                        onClick = { selectedHistoryTab = index },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = tabBg,
+                            contentColor = tabTextCol
+                        ),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
         // Scrollable Filter Chips row
         Row(
             modifier = Modifier
@@ -130,7 +179,7 @@ fun HistoryScreen(navController: NavController, financeViewModel: FinanceViewMod
         }
 
         // List display
-        if (filteredTransactions.isEmpty()) {
+        if (finalTransactions.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -157,7 +206,7 @@ fun HistoryScreen(navController: NavController, financeViewModel: FinanceViewMod
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {
-                items(filteredTransactions, key = { it.id }) { item ->
+                items(finalTransactions, key = { it.id }) { item ->
                     TransactionRowItem(
                         transaction = item,
                         onClick = {

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.example.data.model.Transaction
 import com.example.data.model.User
 
-@Database(entities = [User::class, Transaction::class], version = 1, exportSchema = false)
+@Database(entities = [User::class, Transaction::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun transactionDao(): TransactionDao

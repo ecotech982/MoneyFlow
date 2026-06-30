@@ -231,11 +231,11 @@ fun SettingsScreen(
         )
 
         SettingClickableRow(
-            icon = Icons.Default.PictureAsPdf,
-            title = "Ekspor Format PDF",
-            subtitle = "Cetak laporan keuangan resmi format PDF",
+            icon = Icons.Default.Description,
+            title = "Ekspor Format CSV",
+            subtitle = "Cetak seluruh rekap riwayat format CSV",
             onClick = {
-                val file = com.example.utils.ExportUtils.exportToPdf(context, transactions)
+                val file = com.example.utils.ExportUtils.exportToCsv(context, transactions)
                 if (file != null && file.exists()) {
                     val uri = androidx.core.content.FileProvider.getUriForFile(
                         context,
@@ -243,14 +243,14 @@ fun SettingsScreen(
                         file
                     )
                     val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "application/pdf"
+                        type = "text/csv"
                         putExtra(Intent.EXTRA_STREAM, uri)
-                        putExtra(Intent.EXTRA_SUBJECT, "Laporan Keuangan MoneyFlow (.pdf)")
+                        putExtra(Intent.EXTRA_SUBJECT, "Laporan Keuangan MoneyFlow (.csv)")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    context.startActivity(Intent.createChooser(intent, "Ekspor Laporan PDF (.pdf) Via"))
+                    context.startActivity(Intent.createChooser(intent, "Ekspor Laporan CSV (.csv) Via"))
                 } else {
-                    Toast.makeText(context, "Gagal membuat laporan PDF (.pdf)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Gagal membuat laporan CSV (.csv)", Toast.LENGTH_SHORT).show()
                 }
             }
         )
